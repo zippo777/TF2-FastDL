@@ -1,0 +1,14 @@
+﻿#
+# Windows Forms
+#
+DownloadExtract=Download and extract
+#
+# other texts
+#
+AllDownloaded=All files downloaded! Have fun! :-)
+HaveFun=Have fun!
+HL2NotFound=hl2.exe cannot be found!
+NotTheRightTF2Folder=This folder does not contain Team Fortress 2
+SelectTF2Folder=Please select the folder containing Team Fortress 2
+SteamNotFound=Steam.exe cannot be found!
+WheresTeamFortress2=Where is Team Fortress 2?
