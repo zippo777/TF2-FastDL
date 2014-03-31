@@ -35,61 +35,67 @@ namespace TF2_FastDL
 		private static Assembly assembly = Assembly.GetExecutingAssembly();
 		private static string currentCulture = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName;
 		private const string fileName = "strings";
-		private static bool initialized = false;
 		private static Regex regexStrings = new Regex("(?<name>\\S+?)\\s*?=\\s?(?<value>.+)");
 
+		/// <summary>
+		/// This method should be called as early as possible so we could tell the user what's really wrong.
+		/// However, if it's not called it's not THAT worse.
+		/// </summary>
 		public static void Initialize()
 		{
-			if (!initialized)
+			string[] resources = assembly.GetManifestResourceNames();
+			bool success = false;
+			bool successEn = false;
+			for (int i = 0; i < resources.Length; i++)
 			{
-				string[] resources = assembly.GetManifestResourceNames();
-				bool success = false;
-				bool successEn = false;
-				for (int i = 0; i < resources.Length; i++)
+				if (resources[i].Contains(fileName + "_" + currentCulture + ".txt"))
 				{
-					if (resources[i].Contains(fileName + "_" + currentCulture + ".txt"))
-					{
-						success = true;
-					}
-					else if (resources[i].Contains(fileName + "_en.txt"))
-					{
-						successEn = true;
-					}
-					if (success && successEn)
-					{
-						break;
-					}
+					success = true;
 				}
-				// This should never happen.. if so this is critical
-				if (!successEn)
+				else if (resources[i].Contains(fileName + "_en.txt"))
 				{
-					throw new MissingManifestResourceException();
+					successEn = true;
 				}
-				if (!success)
+				if (success && successEn)
 				{
-					currentCulture = "en";
+					break;
 				}
-				initialized = true;
+			}
+			// This should never happen.. if so this is critical
+			if (!successEn)
+			{
+				throw new MissingManifestResourceException();
+			}
+			if (!success)
+			{
+				currentCulture = "en";
 			}
 		}
 
+		/// <summary>
+		/// Gets a localized string.
+		/// </summary>
+		/// <param name="name">The name of the string.</param>
+		/// <returns>Returns the localized string in the current culture.</returns>
+		/// <exception cref="ArgumentNullException">name or locale is null.</exception>
 		public static string GetLocalizedString(string name)
 		{
 			return GetLocalizedString(name, currentCulture);
 		}
-		
+
+		/// <summary>
+		/// Gets a localized string.
+		/// </summary>
+		/// <param name="name">The name of the string.</param>
+		/// <param name="locale">The two-letter-string of the culture the string should be returned.</param>
+		/// <returns>Returns the localized string in the given culture.</returns>
+		/// <exception cref="ArgumentNullException">name or locale is null.</exception>
 		public static string GetLocalizedString(string name, string locale)
 		{
-			if (!initialized)
-			{
-				Initialize();
-			}
 			if (name == null || locale == null)
 			{
 				throw new ArgumentNullException((name == null) ? "name" : "locale");
 			}
-
-			string result = null;
 
 			try
 			{
@@ -106,7 +112,7 @@ namespace TF2_FastDL
 						Match match = regexStrings.Match(text);
 						if (match.Groups["name"].Value == name)
 						{
-							result = match.Groups["value"].Value;
+							return match.Groups["value"].Value;
 						}
 					}
 				}
@@ -120,17 +126,12 @@ namespace TF2_FastDL
 				throw ex;
 			}
 
-			if (result == null && locale != "en")
+			if (locale != "en")
 			{
-				result = GetLocalizedString(name, "en");
+				return GetLocalizedString(name, "en");
 			}
 
-			return result;
-		}
-
-		public static string FormatLocalizedString(string name, params object[] args)
-		{
-			return String.Format(GetLocalizedString(name), args);
+			return null;
 		}
 	}
 }

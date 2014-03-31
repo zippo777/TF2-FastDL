@@ -21,34 +21,39 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
-using System.Drawing;
 using System.IO;
 using System.Net;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Windows.Forms;
+
 using ICSharpCode.SharpZipLib.BZip2;
 using Microsoft.Win32;
 
 namespace TF2_FastDL
 {
 	/// <summary>
-	/// Description of MainForm.
+	/// The main form of the program.
 	/// </summary>
-	public partial class MainForm : Form
+	internal partial class MainForm : Form
 	{
-		private int currentItem = 0;
 		private bool cancellingWorker = false;
+		private int currentItem = 0;
 		private List<string> downloadQueue = new List<string>();
-		//private List<DateTime> downloadQueueLastModified = new List<DateTime>();
 		private BackgroundWorker downloadWorker = null;
 		private bool isClosing = false;
 		private Regex regexInstallDir = new Regex("^\\s+\"installdir\"\\s+\"(?<installdir>.+)\"\\s*$", RegexOptions.IgnoreCase);
 		private Regex regexLibFolder = new Regex("^\\s+\"BaseInstallFolder_\\d+\"\\s+\"(?<libraryfolder>.+)\"\\s*$", RegexOptions.IgnoreCase);
 		private string steamPath = String.Empty;
 		private const ushort TF2_ID = 440;
+		private const string TF2_INDEX = "tf";
 		private string tf2Path = String.Empty;
 
+		/// <summary>
+		/// Gets or sets the steam installation path.
+		/// </summary>
+		/// <exception cref="ArgumentNullException">value is null.</exception>
+		/// <exception cref="FileNotFoundException">Steam.exe cannot be found in the given path.</exception>
 		public string SteamPath
 		{
 			get
@@ -64,7 +69,7 @@ namespace TF2_FastDL
 
 				if (File.Exists(value + @"\Steam.exe"))
 				{
-					this.steamPath = value;
+					this.steamPath = this.textBoxPath.Text = value;
 				}
 				else
 				{
@@ -73,6 +78,11 @@ namespace TF2_FastDL
 			}
 		}
 
+		/// <summary>
+		/// Gets or sets the path to Team Fortress 2.
+		/// </summary>
+		/// <exception cref="ArgumentNullException">value is null.</exception>
+		/// <exception cref="FileNotFoundException">hl2.exe cannot be found in the given path.</exception>
 		public string TF2Path
 		{
 			get
@@ -88,7 +98,7 @@ namespace TF2_FastDL
 
 				if (File.Exists(value + @"\hl2.exe"))
 				{
-					this.tf2Path = this.textBoxPath.Text = value;
+					this.tf2Path = value;
 				}
 				else
 				{
@@ -97,6 +107,9 @@ namespace TF2_FastDL
 			}
 		}
 
+		/// <summary>
+		/// Creates a new instance of the MainForm-class.
+		/// </summary>
 		public MainForm()
 		{
 			//
@@ -180,6 +193,13 @@ namespace TF2_FastDL
 					}
 				}
 			}
+
+			// One last try:
+			if (File.Exists(this.SteamPath + @"\SteamApps\common\Team Fortress 2\hl2.exe"))
+			{
+				this.TF2Path = this.SteamPath + @"\SteamApps\common\Team Fortress 2";
+				return;
+			}
 		}
 
 		private void MainFormFormClosing(object sender, FormClosingEventArgs e)
@@ -249,9 +269,25 @@ namespace TF2_FastDL
 
 			string fastdlDownloadPath = this.textBoxURL.Text + "tf/";
 			string[][] tfIndex;
-			using (WebClient client = new WebClient())
+			try
 			{
-				tfIndex = IndexParser.Parse(client.DownloadString(fastdlDownloadPath));
+				using (WebClient client = new WebClient())
+				{
+					tfIndex = IndexParser.Parse(client.DownloadString(fastdlDownloadPath));
+				}
+			}
+			catch (WebException)
+			{
+				this.Cursor = Cursors.Default;
+				this.Update();
+				MessageBox.Show(LocalizationManager.GetLocalizedString("WebExceptionMessage"), LocalizationManager.GetLocalizedString("WheresInternet"), MessageBoxButtons.OK, MessageBoxIcon.Error);
+				this.buttonPath.Enabled = true;
+				this.buttonDownload.Show();
+				this.progressBarDownload.Hide();
+				this.progressBarDownload.Value = 0;
+				this.progressBarTotal.Value = 0;
+				this.Update();
+				return;
 			}
 
 			CreateFolders(tfIndex[0][0], tfIndex[1]);
@@ -295,36 +331,45 @@ namespace TF2_FastDL
 			this.Update();
 		}
 
-		public void AddFilesToQueue(string index, string[] files/*, string[] lastModified*/)
+		/// <summary>
+		/// Adds the files given in the string-array files to the queue.
+		/// </summary>
+		/// <param name="index">The current index. (Where the files are)</param>
+		/// <param name="files">The string-array with the files to add.</param>
+		private void AddFilesToQueue(string index, string[] files)
 		{
-			if (files.Length == 0/* || lastModified.Length == 0*/)
+			if (files.Length == 0)
 			{
 				return;
 			}
 
-			if (index.StartsWith("/tf", true, null))
+			if (index.StartsWith(TF2_INDEX, true, null))
 			{
-				index = index.Substring("/tf".Length);
+				index = index.Substring(TF2_INDEX.Length);
 			}
 			index = index.Replace('/', '\\');
 
 			for (int i = 0; i < files.Length; i++)
 			{
 				this.downloadQueue.Add(index + @"\" + files[i]);
-				//this.downloadQueueLastModified.Add(new DateTime(Int64.Parse(lastModified[i])));
 			}
 		}
 
-		public void CreateFolders(string index, string[] folder/*, string[] lastModified*/)
+		/// <summary>
+		/// Creates the folder in which the files will be downloaded.
+		/// </summary>
+		/// <param name="index">The current index (where the folders are)</param>
+		/// <param name="folder">The string-array with the folders to create.</param>
+		private void CreateFolders(string index, string[] folder)
 		{
-			if (folder.Length == 0/* || lastModified.Length == 0*/)
+			if (folder.Length == 0)
 			{
 				return;
 			}
 
-			if (index.StartsWith("/tf", true, null))
+			if (index.StartsWith(TF2_INDEX, true, null))
 			{
-				index = index.Substring("/tf".Length);
+				index = index.Substring(TF2_INDEX.Length);
 			}
 			index = index.Replace('/', '\\');
 
@@ -333,11 +378,16 @@ namespace TF2_FastDL
 				if (!Directory.Exists(this.TF2Path + @"\tf\download" + index + @"\" + folder[i].Replace('/', '\\')))
 				{
 					DirectoryInfo dirInfo = Directory.CreateDirectory(this.TF2Path + @"\tf\download" + index + @"\" + folder[i].Replace('/', '\\'));
-					//dirInfo.LastWriteTime = new DateTime(Int64.Parse(lastModified[i]));
 				}
 			}
 		}
 
+		/// <summary>
+		/// Recursive method for processing folders which are found on the server.
+		/// </summary>
+		/// <param name="fastdlDownloadPath">Current download path</param>
+		/// <param name="index">Current index</param>
+		/// <param name="folder">Folders found</param>
 		private void ProcessFolder(string fastdlDownloadPath, string index, string[] folder)
 		{
 			if (index.StartsWith("/tf", true, null))
@@ -363,7 +413,6 @@ namespace TF2_FastDL
 		private void BackgroundWorker_DoWork(object sender, DoWorkEventArgs e)
 		{
 			string[] downloadArr = this.downloadQueue.ToArray();
-			//DateTime[] lastModifiedArr = this.downloadQueueLastModified.ToArray();
 
 			int counter = 0;
 			for (int i = 0; i < downloadArr.Length; i++)
@@ -416,7 +465,6 @@ namespace TF2_FastDL
 				{
 					BZip2.Decompress(File.OpenRead(destination), File.Create(extractDest), true);
 				}
-				//File.SetLastWriteTime(extractDest, lastModifiedArr[i]);
 				counter++;
 				this.downloadWorker.ReportProgress(counter/this.progressBarTotal.Maximum, counter);
 				File.Delete(destination);
@@ -450,14 +498,18 @@ namespace TF2_FastDL
 		// And since we all LOVE threads, things are getting more complicated at this point:
 		// Now we have a method, which wants to access winforms-controls...
 		// Since they only can be accessed from the thread, which created them, we use a quick hack:
+		/// <summary>
+		/// Sets the style of progressBarDownload to marquee or blocks depending on the given parameter "marquee".
+		/// This can also be called from another thread.
+		/// </summary>
+		/// <param name="marquee">true if style should be marquee, false if not.</param>
 		private void SetProgressBarDownloadMarquee(object marquee)
 		{
 			if (InvokeRequired)
 			{
 				try
 				{
-					ObjDelegate method = new ObjDelegate(SetProgressBarDownloadMarquee);
-					Invoke(method, marquee);
+					Invoke(new ObjDelegate(SetProgressBarDownloadMarquee), marquee);
 				}
 				catch {}
 				return;
@@ -473,14 +525,18 @@ namespace TF2_FastDL
 			}
 		}
 
+		/// <summary>
+		/// Sets the value of progressBarDownload to marquee or blocks depending on the give parameter "value".
+		/// This can also be called from another thread.
+		/// </summary>
+		/// <param name="value">The value the progressBarDownload should be set to.</param>
 		private void UpdateProgressBarDownload(object value)
 		{
 			if (InvokeRequired)
 			{
 				try
 				{
-					ObjDelegate method = new ObjDelegate(UpdateProgressBarDownload);
-					Invoke(method, value);
+					Invoke(new ObjDelegate(UpdateProgressBarDownload), value);
 				}
 				catch {}
 				return;

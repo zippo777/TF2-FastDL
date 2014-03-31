@@ -11,4 +11,6 @@ HL2NotFound=hl2.exe konnte nicht gefunden werden!
 NotTheRightTF2Folder=Dieser Ordner enthält nicht Team Fortress 2
 SelectTF2Folder=Bitte den Team Fortress 2-Installationsordner auswählen
 SteamNotFound=Steam.exe konnte nicht gefunden werden!
+WebExceptionMessage=Kann keine Verbindung zum Server aufbauen. Bitte die Internet-Verbindung überprüfen oder später erneut versuchen.
+WheresInternet=Wo ist das Internet?
 WheresTeamFortress2=Wo ist Team Fortress 2?

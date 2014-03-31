@@ -135,7 +135,7 @@ namespace TF2_FastDL
 			this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
 			this.MaximizeBox = false;
 			this.Name = "MainForm";
-			this.Text = "TF2_FastDL";
+			this.Text = "FastDL Downloader";
 			this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.MainFormFormClosing);
 			this.ResumeLayout(false);
 			this.PerformLayout();
